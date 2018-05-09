@@ -1,0 +1,465 @@
+﻿<link href="css/reset.css" rel="stylesheet" />
+<link href="css/bootstrap.min.css" rel="stylesheet" />
+<link href="css/HiChat.css" rel="stylesheet" />
+<script src="js/vue.min.js"></script>
+<script src="js/jquery-1.10.2.min.js"></script>
+<script src="js/jquery.signalR-2.2.2.min.js"></script>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>SignalR-聊天室</title>
+    <script>
+        function GetQueryString(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+            var r = window.location.search.substr(1).match(reg);
+            if (r != null) return decodeURI(r[2]); return null;
+        }
+        var current_uname = '';
+        var current_userid = GetQueryString("userid");
+    </script>
+</head>
+<body>
+    <div class="wall-bg">
+        <img src="images/background.jpg" />
+    </div>
+    <div class="container js-body" id="vue-js-app">
+        <div class="row" id="js-homepage">
+            <div class="col-sm-12">
+                <div class="js-userinfo clearfix">
+                    <div class="js-user-img pull-left">
+                        <img src="images/avatar.jpg" width="50" height="50" />
+                    </div>
+                    <div class="js-user-info pull-left">
+                        <div class="js-user-nickname" v-text="cnt_uname"></div>
+                        <div class="js-user-signature">无个性，不签名</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="js-main border-gray">
+                    <div class="js-main-header text-white bg-black text-center">联系人</div>
+                    <div class="js-main-body text-black bg-gray">
+                        <div class="js-main-body-group bg-white">
+                            <ul class="flex">
+                                <li class="js-li text-center" v-on:click="showHome();">大厅</li>
+                                <li class="text-gray js-li-seperator">|</li>
+                                <li class="js-li text-center js-tab" @click="showuser(1)" v-bind:class="flag==1?' js-li-active':''">好友</li>
+                                <li class="text-gray js-li-seperator">|</li>
+                                <li class="js-li text-center js-tab" v-on:click="shogroup(2)" v-bind:class="flag==2?' js-li-active':''">群组</li>
+                            </ul>
+                        </div>
+                        <!--在线用户列表-->
+                        <div class="js-ul-items bg-white js-tab-item" v-show="isshowusers">
+                            <div class="js-li-item">
+                                <div class="js-fgname"><span class="js-lt text-gray">&gt;</span>在线好友</div>
+                                <div class="js-users">
+                                    <div class="js-user clearfix" v-for="(item,key) in onlineUserList" @click="douserbyid(item.UserID,item.UserName)">
+                                        <div class="js-li-img pull-left">
+                                            <img src="images/avatar.jpg" alt="Alternate Text" width="40" height="40" />
+                                        </div>
+                                        <div class="js-li-nickname pull-left">{{item.UserName}}</div>
+                                        <div class="js-li-signature pull-left text-gray"><span>(在线)</span>无个性不签名。。。</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="js-tab-item bg-white" v-show="isshowgroup">
+                            <div class="js-li-item" id="grouplist">
+                                <div class="js-group-name"><span class="js-lt text-gray">&gt;</span>全部群组</div>
+                                <div class="js-groups">
+                                    <div class="js-room clearfix" v-for="(g,key) in groupList" @click="dochatgroup(g.RoomId,g.RoomName)">
+                                        <div class="js-li-img pull-left">
+                                            <img src="images/6.jpg" alt="群头像" width="40" height="40" />
+                                        </div>
+                                        <div class="js-li-nickname pull-left">{{g.RoomName}}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="js-main-footer bg-grey">
+                        <div class="js-btn-submit pull-left"><input type="button" @click="btnshowGroupView" value="创建群组" class="js-submit btn-primary" style="width:70px;" /></div>
+                    </div>
+                </div>
+            </div>
+
+            <!------大厅窗口-------->
+            <div class="col-sm-9" v-show="chatpanel">
+                <div class="js-chat text-white border-gray">
+                    <div class="js-chat-header bg-grey text-center clearfix">
+                        <div class="js-txt-nickname pull-left">SignalR-聊天室-大厅</div>
+                    </div>
+                    <!--聊天记录-->
+                    <div class="js-chat-body bg-gray" style="height:550px;width:847px;overflow:auto" v-html="joinhtml">
+                     
+                    </div>
+                    <div class="js-chat-footer clearfix bg-grey">
+                        <div class="js-text-msg pull-left" style="width:90%;padding-top:4px;"><input type="text" v-model="txtPubMsg" placeholder="对大家说点啥" class="js-text" /></div>
+                        <div class="js-btn-submit pull-right"><input type="button" name="btnSend" id="btnSend" value="发送" class="js-submit btn-primary" v-on:click="btnSend()" /></div>
+                    </div>
+                </div>
+            </div>
+
+            <!------私聊好友窗口--------->
+            <div class="col-sm-9" v-show="chatfriends">
+                <div class="js-chat text-white border-gray">
+                    <div class="js-chat-header bg-grey text-center clearfix">
+                        <div class="js-friend-title pull-left" v-html="friendname">SignalR-聊天室</div>
+                        <div class="js-div-close pull-right"><a href="javascript:;" class="text-white js-a-close" @click="showHome();">关闭</a></div>
+                        <input type="hidden" value="" v-model="hid_touserid" />
+                    </div>
+                    <div class="js-chat-body bg-gray" style="height:550px;width:847px;overflow:auto" v-html="frihtml">
+                            
+                    </div>
+                    <div class="js-chat-footer clearfix bg-grey">
+                        <div class="js-text-msg pull-left" style="width:90%;"><input type="text" v-model="txtfriendMsg" placeholder="对TA说点啥" class="js-text" /></div>
+                        <div class="js-btn-submit pull-right"><input type="button" name="btnFriendSend" value="发送" class="js-submit btn-primary" @click="btnFriendSend()" /></div>
+                    </div>
+                </div>
+            </div>
+
+            <!------群组聊天窗口--------->
+            <div class="col-sm-9" v-show="chatgroups">
+                <div class="js-chat text-white border-gray">
+                    <div class="js-chat-header bg-grey text-center clearfix">
+                        <div class="js-txt-nickname pull-left">{{group_title}}</div>
+                        <div class="js-div-close pull-right"><a href="javascript:;" class="text-white js-a-close" @click="showHome()">退出</a></div>
+                        <input type="hidden" v-model="hid_roomid" />
+                    </div>
+
+                    <div class="js-chat-body bg-gray" style="height:550px;width:847px;overflow:auto" v-html="grouphtml">
+                        
+                    </div>
+
+                    <div class="js-chat-footer clearfix bg-grey">
+                        <div class="js-text-msg pull-left" style="width:90%;"><input type="text" v-model="txtgroupmsg" placeholder="对大家说点啥" class="js-text" /></div>
+                        <div class="js-btn-submit pull-right"><input type="button" @click="btnGroupdSend()" value="发送" class="js-submit btn-primary"/></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!--创建群组模态框-->
+        <div v-show="shomdal" class="modal fade in" id="groupModal" tabindex="-1" role="dialog" aria-labelledby="groupModal" style="display:block">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" @click="closegroupView()">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                        <h4 class="modal-title" id="exampleModalLabel">创建群组</h4>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="form-group">
+                                <label for="recipient-name" class="control-label">群组名称:</label>
+                                <input type="text" class="form-control" placeholder="请输入群组名称" v-model="groupname">
+                                <label class="control-label" style="color:red">{{group_errmsg}}</label>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" @click="closegroupView()">关闭</button>
+                        <button type="button" class="btn btn-primary" @click="creategroup()">创建</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+<script type="text/javascript">
+    //聊天记录集合
+    var pubhistoryList = [];
+    var onlineUserList = []; //在线用户集合
+    var groupList = [];//群组集合
+    var prihistoryList = [];//私聊历史记录
+    var groupHistoryList = [];//群聊天记录
+
+
+    new Vue({
+        el: '#vue-js-app',
+        data: {
+            onlineUserList: onlineUserList,
+            cnt_uname: current_uname,
+            txtPubMsg: '',
+            txtfriendMsg: '',
+            pubhistoryList: pubhistoryList,
+            isshowusers: true,
+            isshowgroup: false,
+            chatpanel: true,
+            chatfriends: false,
+            chatgroups: false,
+            hid_touserid: '',//好友聊天id
+            prihistoryList: prihistoryList,
+            friendname: '',
+            groupHistoryList: groupHistoryList,
+            groupname: '',
+            shomdal: false,
+            group_errmsg: '',
+            groupList: groupList,
+            hid_roomid: '',
+            joinhtml: '',
+            frihtml: '',
+            grouphtml: '',
+            group_title: '',
+            txtgroupmsg: '',
+            flag:1,
+            proxy: []
+        },
+        //监听
+        computed: {
+           
+        },
+        created() {
+            this.initdata();
+        },
+        methods: {
+            initdata: function () {
+                var conn = $.hubConnection("http://localhost:7132/signalr");
+                var proxy = conn.createHubProxy("chatHub");
+                this.proxy = proxy;
+
+                this.proxy.on('returnLogin', () => {
+                    window.location.href = "login.html";
+                });
+                //获取当前登陆用户信息
+                this.proxy.on('queryUinfoById', (username, userid) => {
+                    current_uname = username,
+                    this.cnt_uname = username;
+                    current_userid = userid;
+                });
+                //在线用户列表
+                proxy.on('showUserList', data => {
+                    this.onlineUserList = data;
+                });
+                //群组列表
+                proxy.on('showAllRoomList', data => {
+                    this.groupList = data;
+                });
+                //显示聊天记录
+                proxy.on('sendPublicMessage', (userid, username, message,dt) => {
+                    var direction = userid === current_userid ? 'right' : 'left';
+                    var str = '<div class="js-time text-white text-center"><span>' + dt + '</span></div>'
+                        + '<div class="col-sm-12"><div class="js-msg-' + direction + ' clearfix text-black"><div class="js-msg-img pull-' + direction + '">'
+                        + '<img src="/Images/avatar.jpg" width="50" height="50" /></div><div class="js-msg-text pull-' + direction + '"><div class="js-msg-nick text-' + direction + '">' + username + '</div>'
+                        + '<div class="js-msg-info bg-white">' + message + '</div></div></div></div>';
+                    this.joinhtml += str;
+                });
+
+                //显示好友消息
+                this.proxy.on('showMsgToPages', (frmuid, sendname, message,dt) => {
+                    this.getPriMsgHtml(frmuid, sendname, message,dt);
+                });
+
+                //显示好友接收到消息
+                this.proxy.on('remindMsg', (frmuid, frmuname, message,dt) => {
+                    if (this.hid_touserid != frmuid)//如果当前聊天的id不相同
+                    {
+                        if (confirm("您收到一条消息")) {
+                            this.proxy.invoke('getChatHistory', 1, frmuid, current_userid, '');
+                            this.hid_touserid = frmuid;
+                            this.friendname = '正在与&nbsp;&nbsp;<span style="font-weight:bold;color:blue"> ' + frmuname + '</span>&nbsp;&nbsp;聊天';
+                            this.chatpanel = false;
+                            this.chatfriends = true;
+                            this.chatgroups = false;
+                        }
+                    } else {
+                        this.getPriMsgHtml(frmuid, frmuname, message,dt);
+                    }
+                });
+
+                //获取聊天记录
+                this.proxy.on('initChatHistoryData', (data, chattype) => {
+                   switch (chattype) {
+                        case 0://公共聊天记录
+                          // this.pubhistoryList = data;
+                           this.joinhtml = this.getStrHtml(data);
+                            break;
+                        case 1://私聊
+                          // this.prihistoryList = data;
+                           this.frihtml = this.getStrHtml(data);
+                            break;
+                        case 2://群聊天
+                           this.grouphtml = this.getStrHtml(data);
+                           //this.groupHistoryList = data;
+                            break;
+                        default:
+                            break;
+                    }
+                });
+
+                //显示创建群组消息提示
+                this.proxy.on('showGroupMsg', (state) => {
+                    if (state == "success") {
+                        this.shomdal = false;
+                    } else {
+                        this.group_errmsg = '已存在相同名称的群组';
+                    }
+                });
+
+                //显示加入群组系统消息
+                this.proxy.on('showSysGroupMsg', username => {
+                    this.grouphtml += '<div class="js-time text-white text-center"><span>' + username + '加入了聊天</span></div>';
+                });
+                //显示提示消息
+                this.proxy.on('showMessage', message => {
+                    alert(message);
+                });
+
+                //显示群组消息
+                this.proxy.on('showGroupByRoomMsg', (username, roomid, message,dt) => {
+                    if (this.hid_roomid == roomid && this.hid_roomid != "" && this.hid_roomid != "undefined") {
+                        var str = '';
+                        var direction = username === current_uname ? 'right' : 'left';
+                        var str = '<div class="js-time text-white text-center"><span>' + dt + '</span></div>' +
+                            '<div class="col-sm-12"><div class="js-msg-' + direction + ' clearfix text-black"><div class="js-msg-img pull-' + direction + '">'
+                            + '<img src="/Images/avatar.jpg" width="50" height="50" /></div><div class="js-msg-text pull-' + direction + '"><div class="js-msg-nick text-' + direction + '">' + username + '</div>'
+                            + '<div class="js-msg-info bg-white">' + message + '</div></div></div></div>';
+                        this.grouphtml += str;
+                    }
+                });
+                conn.start().done(function () {
+                    //添加在线用户
+                    proxy.invoke("queryUinfoById",current_userid);
+                    //获取用户集合
+                    proxy.invoke('getAllOnlineUser');
+                    //获取群组集合
+                    proxy.invoke('updateAllRoomList');
+
+                    proxy.invoke('getChatHistory', 0, '', current_userid, '');
+
+                }).fail(function () {
+                    console.log("Could not connect");
+                });
+            },
+
+            //大厅聊天发送
+            btnSend: function () {
+                if (this.txtPubMsg == "" || this.txtPubMsg == undefined || this.txtPubMsg == null) {
+                    alert("请输入聊天信息");
+                } else {
+                    this.proxy.invoke('publicSendMsg', this.txtPubMsg, current_userid);
+                    this.txtPubMsg = '';
+                }
+            },
+            //大厅
+            showHome: function (index) {
+                this.proxy.invoke('getChatHistory', 0, '', current_userid, '');
+                this.chatpanel = true;
+                this.chatfriends = false;
+                this.chatgroups = false;
+                this.hid_touserid = '';
+                this.hid_roomid = '';
+            },
+            //好友
+            showuser: function (index) {
+                this.isshowusers = true;
+                this.isshowgroup = false;
+                this.flag = 1;
+            },
+            //群组
+            shogroup: function (index) {
+                this.isshowusers = false;
+                this.isshowgroup = true;
+                this.hid_touserid = '';
+                this.flag = 2;
+            },
+            //点击选择好友事件
+            douserbyid: function (toid, username) {
+                if (toid != "undefined") {
+                    this.proxy.invoke('getChatHistory', 1, toid, current_userid, '');
+                    this.friendname = '正在与&nbsp;&nbsp;<span style="font-weight:bold;color:blue"> ' + username + '</span>&nbsp;&nbsp;聊天';
+                    this.hid_touserid = toid;
+                    this.chatpanel = false;
+                    this.chatfriends = true;
+                    this.chatgroups = false;
+                }
+            },
+            //发送好友消息
+            btnFriendSend: function () {
+                var msg = this.txtfriendMsg.trim();
+                if (msg == null || msg == "" || msg == "undefined") {
+                    alert("请输入聊天记录");
+                } else {
+                    this.proxy.invoke('sendPrivateMsg', current_uname, this.hid_touserid, this.txtfriendMsg);
+                    this.txtfriendMsg = '';
+                }
+            },
+            getPriMsgHtml: function (userId, sendname, message,dt) {
+                var str = '';
+                //拼接聊天记录
+                var direction = userId === current_userid ? 'right' : 'left';
+                str = '<div class="js-time text-white text-center"><span>' + dt + '</span></div> ' 
+                    +'<div class="col-sm-12"><div class="js-msg-' + direction + ' clearfix text-black"><div class="js-msg-img pull-' + direction + '">'
+                    + '<img src="/Images/avatar.jpg" width="50" height="50" /></div><div class="js-msg-text pull-' + direction + '"><div class="js-msg-nick text-' + direction + '">' + sendname + '</div>'
+                    + '<div class="js-msg-info bg-white">' + message + '</div></div></div></div>';
+                this.frihtml += str;
+            },
+            //获取字符串拼接
+            getStrHtml: function (list) {
+                var str = '';
+                if (list != null && list != "") {
+                    for (var i = 0; i < list.length; i++) {
+                        var direction = list[i].frmId === current_userid ? 'right' : 'left';
+                        str += '<div class="js-time text-white text-center"><span>' + list[i].msgTime + '</span></div>'
+                            + '<div class="col-sm-12"><div class="js-msg-' + direction + ' clearfix text-black"><div class="js-msg-img pull-' + direction + '">'
+                            + '<img src="/Images/avatar.jpg" width="50" height="50" /></div><div class="js-msg-text pull-' + direction + '"><div class="js-msg-nick text-' + direction + '">' + list[i].UserName + '</div>'
+                            + '<div class="js-msg-info bg-white">' + list[i].Message + '</div></div></div></div>';
+                    }
+                }
+                return str;
+            },
+            //弹出框
+            btnshowGroupView: function () {
+                this.shomdal = true;
+            },
+            //创建群组
+            creategroup: function () {
+                name = this.groupname.trim();
+                if (name == '' || name == "undefined" || name == null) {
+                    this.group_errmsg = '请输入群组名称';
+                } else {
+                    this.proxy.invoke('createRoom',name);
+                    this.group_errmsg = '';
+                }
+            },
+            //关闭群组弹出框
+            closegroupView: function () {
+                this.shomdal = false;
+            },
+            //点击单个群组聊天
+            dochatgroup: function (roomId, roomName) {
+                if (roomId != "undefined" && roomId != "") {
+                    this.proxy.invoke('getChatHistory', 2, '', current_userid, roomId);
+                    this.hid_roomid = roomId;
+                    this.chatgroups = true;
+                    this.chatfriends = false;
+                    this.chatpanel = false;
+                    this.group_title = '' + roomName;
+                    this.proxy.invoke('joinRoom', roomId, current_userid);
+                }
+            },
+            //发送群组聊天
+            btnGroupdSend: function () {
+                var roomid = this.hid_roomid;
+                var msg = this.txtgroupmsg.trim();
+                if (msg != null && msg != "" && msg != "undefined") {
+                    if (roomid != "" && roomid != null && roomid != "undefined") {
+                        this.proxy.invoke('sendMessageByRoom', roomid, current_userid, msg);
+                        this.txtgroupmsg = '';
+                    } else {
+                        alert('房间id不存在');
+                    }
+                } else {
+                    alert('请输入消息');
+                }
+            }
+        }
+    });
+  
+
+</script>

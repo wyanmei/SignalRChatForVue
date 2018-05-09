@@ -1,0 +1,139 @@
+﻿<link href="css/bootstrap.min.css" rel="stylesheet" />
+<link href="css/reset.css" rel="stylesheet" />
+<script src="js/vue.min.js"></script>
+<script src="js/jquery-1.10.2.min.js"></script>
+<script src="js/jquery.signalR-2.2.2.min.js"></script>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>SignalR-聊天室</title>
+    <style type="text/css">
+        .js-home-main {
+            padding-top: 200px;
+            text-align: center;
+            font-family: 'Comic Sans MS'
+        }
+
+        .js-home-title {
+            font-size: 50px;
+        }
+
+        .js-home-subtitle {
+            font-size: 10px;
+            padding-top: 30px;
+            color: #999;
+        }
+
+        .js-home-user {
+            margin-top: 30px;
+        }
+
+        .js-home-introduction {
+            font-size: 15px;
+            padding-top: 30px
+        }
+
+            .js-home-introduction a {
+                display: block;
+                width: 100px;
+                height: 30px;
+                margin: 0 auto;
+                padding: 3px 10px;
+            }
+
+                .js-home-introduction a:link {
+                    text-decoration: none
+                }
+
+                .js-home-introduction a:visited {
+                    text-decoration: none
+                }
+
+                .js-home-introduction a:hover {
+                    text-decoration: none;
+                    background: #0094ff;
+                    border-radius: 5px;
+                    color: #fff
+                }
+
+                .js-home-introduction a:active {
+                    text-decoration: none
+                }
+
+        .js-home-copyright {
+            color: #333;
+            padding-top: 30px
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="jslogin">
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="js-home-main text-center">
+                    <div class="js-home-title">SignalR-聊天室</div>
+                    <div class="js-home-user">
+                        <p><label for="txtMail">昵称：<input type="text" v-model="txtNick" /></label></p>
+                        <!--<p><label for="txtNick">密码：<input type="password" v-model="txtPwd" /></label></p>-->
+                    </div>
+                    <div class="js-home-introduction text-center"><a href="javascript:;" v-on:click="btnLogin()">立即体验</a></div>
+                    <div class="js-home-subtitle">给你更清爽的全新体验</div>
+                    <div class="js-home-copyright">Copyright© 2018 wym All Rights Reserved.</div>
+                    <hr />
+                    <p class="text-primary"><a href="javascript:;">SignalR-聊天室</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        ////随机数
+        //var chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+        //function generateMixed(n) {
+        //    var res = "";
+        //    for (var i = 0; i < n; i++) {
+        //        var id = Math.ceil(Math.random() * 35);
+        //        res += chars[id];
+        //    }
+        //    return res;
+        //}
+
+        var vm = new Vue({
+            el: '#jslogin',
+            data: {
+                txtNick: '',
+                proxy:[]
+            },
+            created() {
+                this.initdata();
+            },
+            methods: {
+                initdata: function () {
+                    var conn = $.hubConnection("http://localhost:7132/signalr");
+                    var proxy = conn.createHubProxy("chatHub");
+                    this.proxy = proxy;
+                    this.proxy.on('showJoinMessage', uid => {
+                        if (uid != "") {
+                            window.location.href = 'index.html?userid=' + uid;
+                        }
+                    });
+                    conn.start().done(function () {
+
+                    }).fail(function () {
+                        console.log("Could not connect");
+                    });
+                },
+                //登陆
+                btnLogin: function () {
+                    if (this.txtNick != "" && this.txtNick != null) {
+                        this.proxy.invoke('addOnlineUser', this.txtNick);
+                    } else {
+                        alert("请输入您的昵称");
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

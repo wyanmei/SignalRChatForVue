@@ -1,0 +1,134 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>demo1</title>
+    <script src="https://cdn.bootcss.com/vue/2.4.1/vue.js"></script>
+    <link href="https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.css" rel="stylesheet">
+</head>
+
+<body class="container">
+    <div id="app">
+        <div class="row toolbar">
+        <div class="col-md-8">
+            keyword：
+            <input type="text" v-model="keyword" />
+            <input type="button" @click="query()" value="search" />
+        </div>
+    </div>
+    <div class='row'>
+        <div class="col-md-6">
+            <table class="table table-bordered">
+                <tr>
+                    <th></th>
+                    <th>title</th>
+                    <th>desc</th>
+                    <th></th>
+                </tr>
+                <tr v-for="(todoItem,index) in todolist">
+                    <th>{{todoItem.id}}</th>
+                    <td>{{todoItem.title}}</td>
+                    <td>{{todoItem.desc}}</td>
+                    <td>
+                        <input type="button" value="remove" @click="remove(index)" class="btn btn-danger" />
+                        <input type="button" value="edit" @click="edit(todoItem.id)" class="btn btn-info" />
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <div class="form-inline">
+                <label for="title" class="control-label col-md-4">title:</label>
+                <input type="hidden" v-bind:value="todoItem.id" />
+                <input type="text" v-model="todoItem.title" class="form-control col-md-8">
+            </div>
+            <div class="form-inline">
+                <label for="desc" class="control-label col-md-4">desc</label>
+                <input type="text" v-model="todoItem.desc" class="form-control col-md-8">
+            </div>
+            <div class="form-inline">
+                <input type="button" value="OK" v-on:click="save()" class="btn btn-primary offset-md-10" :disabled='canSave' />
+            </div>
+        </div>
+    </div>
+
+    </div>
+    <script>
+        var list = [];
+        var TodoItem = (function () {
+            var id = 1;
+            return function (title, desc) {
+                this.title = title;
+                this.desc = desc;
+                this.id = id++;
+            }
+        })();
+        new Vue({
+            el: '#app',
+            data: {
+                todolist: [],
+                todoItem: {
+                    id: '',
+                    title: '',
+                    desc: ''
+                },
+                keyword: ''
+            },
+            //监听
+            computed: {
+                canSave: function () {
+                    return !this.todoItem.title || !this.todoItem.desc;
+                }
+            },
+            //方法
+            methods: {
+                //查询
+                query: function () {
+                   
+                    this.todolist = list.filter(v => v.title.indexOf(this.keyword) !== -1);
+                },
+                edit: function (id) {
+                    //找到id值等于所传参数的todoitem
+                    var obj = this.todolist.filter(x => x.id === id)[0];
+                    //对数据进行绑定，则数据会响应到表单上
+                    this.todoItem = {
+                        id: obj.id,
+                        title: obj.title,
+                        desc: obj.desc
+                    };
+                },
+                save: function () {
+                    if (this.todoItem.id) {
+                        //编辑保存
+                        var obj = this.todolist.filter(v => v.id === this.todoItem.id)[0];
+                        obj.title = this.todoItem.title;
+                        obj.desc = this.todoItem.desc;
+
+                    } else {
+                        //新增保存
+                        this.todolist.push(
+                            new TodoItem(
+                                this.todoItem.title,
+                                this.todoItem.desc
+                            )
+                        );
+                    }
+                    //重置表单
+                    this.todoItem = { title: '', desc: '' };
+
+                    list = this.todolist;
+                },
+                //删除
+                remove: function (index) {
+                    this.todolist.splice(index, 1);
+                }
+
+            }
+        })
+    </script>
+</body>
+
+</html>

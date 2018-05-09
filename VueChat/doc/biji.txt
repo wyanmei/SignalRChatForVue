@@ -1,0 +1,29 @@
+﻿1.v-html 输出html代码
+2.属性：v-model="cls1"  v-bind:class=
+3.v-show
+4.v-if v-else-if,v-else
+5.v-for="item in object",v-for(key,value) in object
+6.计算属性：computed
+
+7.vm.$watch('name',function(){
+
+})//监听属性
+
+8.v-bind:class ="{clsname}"  样式绑定
+  v-bind:style="{color:activeColor}"
+
+9.Vue.component('name',{	//创建组建，props父组件传递数据属性
+	props:['dataname'],
+template:''
+})
+
+10.自定义事件
+	 $emit(eventName) 触发事件
+	 $on(eventName) 监听事件
+
+11.自定义指令
+Vue.directive('',{
+inserted:function(){
+
+}
+})
